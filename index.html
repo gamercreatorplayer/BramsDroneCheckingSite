@@ -1,137 +1,409 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🚁 Drone vliegcheck met fotoherkenning</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DroneFly Pro</title>
 
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      background: #f4f7fb;
       margin: 0;
-      padding: 30px;
+      font-family: Arial, sans-serif;
+      background:
+        radial-gradient(circle at top, #1c2f52 0%, #0f172a 45%, #08101d 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-size: 42px;
+      letter-spacing: 0.5px;
+    }
+
+    .hero p {
+      margin-top: 10px;
+      color: #c7d2fe;
+      font-size: 18px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: blur(8px);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .muted {
+      color: #cbd5e1;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .input,
+    .file-input,
+    .button {
+      width: 100%;
+      border-radius: 16px;
+      font-size: 17px;
+      padding: 14px 16px;
+      margin-top: 12px;
+    }
+
+    .input,
+    .file-input {
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      outline: none;
+    }
+
+    .input::placeholder {
+      color: #cbd5e1;
+    }
+
+    .button {
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      font-weight: bold;
+      transition: transform 0.12s ease, opacity 0.12s ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+
+    .button.secondary {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
+    .preview-wrap {
+      margin-top: 16px;
       text-align: center;
     }
 
-    .box {
-      max-width: 900px;
-      margin: 0 auto;
-      background: white;
-      padding: 30px;
-      border-radius: 20px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-    }
-
-    h1 {
-      margin-top: 0;
-      font-size: 34px;
-    }
-
-    p {
-      font-size: 18px;
-    }
-
-    input[type="file"], button {
-      font-size: 18px;
-      padding: 12px 18px;
-      border-radius: 12px;
-      margin: 10px 0;
-    }
-
-    button {
-      border: none;
-      cursor: pointer;
-      background: #222;
-      color: white;
-    }
-
     #previewImage {
-      max-width: 320px;
-      max-height: 240px;
-      margin-top: 15px;
-      border-radius: 16px;
+      max-width: 100%;
+      max-height: 260px;
+      border-radius: 18px;
+      border: 2px solid rgba(255,255,255,0.18);
       display: none;
-      border: 2px solid #ddd;
     }
 
-    #droneResult, #status {
-      margin-top: 20px;
-      padding: 18px;
-      border-radius: 16px;
-      font-size: 24px;
+    .score-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 330px;
+      text-align: center;
+    }
+
+    .score-ring {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+      background:
+        conic-gradient(#22c55e 0deg, #1e293b 0deg);
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+
+    .score-ring::before {
+      content: "";
+      position: absolute;
+      inset: 18px;
+      border-radius: 50%;
+      background: #0f172a;
+    }
+
+    .score-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    .score-number {
+      font-size: 54px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .score-label {
+      margin-top: 6px;
+      color: #cbd5e1;
+      font-size: 15px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 28px;
+      font-weight: bold;
+      padding: 14px 22px;
+      border-radius: 999px;
+      margin-top: 8px;
+    }
+
+    .status-goed {
+      background: rgba(34, 197, 94, 0.18);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .status-matig {
+      background: rgba(250, 204, 21, 0.16);
+      color: #fde68a;
+      border: 1px solid rgba(250, 204, 21, 0.35);
+    }
+
+    .status-slecht {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .mini-card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .mini-title {
+      color: #cbd5e1;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .mini-value {
+      font-size: 26px;
       font-weight: bold;
     }
 
-    .info {
-      background: #e7f1ff;
-      color: #0b4a8b;
+    .detail-box {
+      margin-top: 18px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 18px;
+      padding: 16px;
+      line-height: 1.7;
     }
 
-    .goed {
-      background: #d4f8d4;
-      color: #126312;
-    }
-
-    .matig {
-      background: #fff3cd;
-      color: #856404;
-    }
-
-    .slecht {
-      background: #f8d7da;
-      color: #842029;
-    }
-
-    .klein {
-      display: block;
-      margin-top: 12px;
-      font-size: 16px;
-      font-weight: normal;
-      line-height: 1.6;
-    }
-
-    .hint {
+    .reasons {
       margin-top: 14px;
-      font-size: 14px;
-      color: #666;
+      text-align: left;
+      color: #e2e8f0;
+      padding-left: 18px;
+    }
+
+    .reasons li {
+      margin-bottom: 6px;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .drone-pill {
+      display: inline-block;
+      background: rgba(59, 130, 246, 0.18);
+      color: #bfdbfe;
+      border: 1px solid rgba(59, 130, 246, 0.34);
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .loading {
+      color: #cbd5e1;
+      font-size: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 34px;
+      }
+
+      .score-ring {
+        width: 190px;
+        height: 190px;
+      }
+
+      .score-ring::before {
+        inset: 16px;
+      }
+
+      .score-number {
+        font-size: 46px;
+      }
+
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>🚁 Mag ik vliegen?</h1>
-    <p>Upload een foto van je drone. Ik herken het type en pas de vliegregels automatisch aan.</p>
+  <div class="app">
+    <div class="hero">
+      <h1>🚁 DroneFly Pro</h1>
+      <p>Typ je drone of upload een foto. Ik check automatisch of je veilig kan vliegen.</p>
+    </div>
 
-    <input type="file" id="imageUpload" accept="image/*">
-    <br>
-    <img id="previewImage" alt="Drone preview">
+    <div class="grid">
+      <div class="card">
+        <h2>Jouw drone</h2>
+        <div class="muted">
+          Typ de naam van je drone. Dat heeft voorrang. Als je niets typt, probeert de AI je drone op de foto te herkennen.
+        </div>
 
-    <div id="droneResult" class="info">Nog geen drone herkend.</div>
+        <input
+          type="text"
+          id="manualDrone"
+          class="input"
+          placeholder="Bijv. DJI Mini 3 Pro, DJI Air 2S, FPV, Gear2Play Sky Lightning Drone XS..."
+        />
 
-    <button id="checkBtn">Herken drone + check vliegweer</button>
+        <input
+          type="file"
+          id="imageUpload"
+          class="file-input"
+          accept="image/*"
+        />
 
-    <div id="status" class="info">Upload eerst een foto en klik dan op de knop.</div>
+        <div class="preview-wrap">
+          <img id="previewImage" alt="Drone preview" />
+        </div>
 
-    <div class="hint">
-      Deze versie gebruikt jouw Teachable Machine-model.
+        <button id="checkBtn" class="button">Check vliegen</button>
+        <button id="clearBtn" class="button secondary">Reset</button>
+
+        <div class="detail-box">
+          <strong>Herkenning</strong>
+          <div id="droneResult" class="muted" style="margin-top:8px;">
+            Nog geen drone gekozen.
+          </div>
+        </div>
+
+        <div class="footer-note">
+          De AI gebruikt jouw Teachable Machine-model. Het weer gebruikt Open-Meteo. Zonneweer gebruikt NOAA Kp-data.
+        </div>
+      </div>
+
+      <div class="card score-panel">
+        <div id="scoreRing" class="score-ring">
+          <div class="score-inner">
+            <div id="scoreNumber" class="score-number">--</div>
+            <div class="score-label">Vliegscore</div>
+          </div>
+        </div>
+
+        <div id="statusBadge" class="status-badge status-matig">Nog niet gecheckt</div>
+        <div id="droneLabel" class="drone-pill" style="display:none;">Drone: -</div>
+
+        <div class="info-grid">
+          <div class="mini-card">
+            <div class="mini-title">Gemiddelde wind</div>
+            <div id="windValue" class="mini-value">-</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-title">Windstoten</div>
+            <div id="gustsValue" class="mini-value">-</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-title">Regen</div>
+            <div id="rainValue" class="mini-value">-</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-title">Kp-index</div>
+            <div id="kpValue" class="mini-value">-</div>
+          </div>
+        </div>
+
+        <div id="summaryBox" class="detail-box" style="width:100%; margin-top:18px;">
+          <strong>Uitleg</strong>
+          <div id="summaryText" class="muted" style="margin-top:8px;">
+            Typ een drone of upload een foto en klik daarna op <strong>Check vliegen</strong>.
+          </div>
+          <ul id="reasonsList" class="reasons"></ul>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
     const MODEL_URL = "https://teachablemachine.withgoogle.com/models/llpcFbVDm/";
-
     let model = null;
-    let uploadedImage = null;
 
     const previewImage = document.getElementById("previewImage");
     const imageUpload = document.getElementById("imageUpload");
+    const manualDroneInput = document.getElementById("manualDrone");
     const droneResult = document.getElementById("droneResult");
-    const statusBox = document.getElementById("status");
     const checkBtn = document.getElementById("checkBtn");
+    const clearBtn = document.getElementById("clearBtn");
+
+    const scoreRing = document.getElementById("scoreRing");
+    const scoreNumber = document.getElementById("scoreNumber");
+    const statusBadge = document.getElementById("statusBadge");
+    const droneLabel = document.getElementById("droneLabel");
+
+    const windValue = document.getElementById("windValue");
+    const gustsValue = document.getElementById("gustsValue");
+    const rainValue = document.getElementById("rainValue");
+    const kpValue = document.getElementById("kpValue");
+
+    const summaryText = document.getElementById("summaryText");
+    const reasonsList = document.getElementById("reasonsList");
 
     imageUpload.addEventListener("change", (event) => {
       const file = event.target.files[0];
@@ -141,10 +413,33 @@
       reader.onload = function(e) {
         previewImage.src = e.target.result;
         previewImage.style.display = "block";
-        droneResult.className = "info";
         droneResult.innerHTML = "📷 Foto geladen. Klaar om te herkennen.";
       };
       reader.readAsDataURL(file);
+    });
+
+    clearBtn.addEventListener("click", () => {
+      manualDroneInput.value = "";
+      imageUpload.value = "";
+      previewImage.src = "";
+      previewImage.style.display = "none";
+      droneResult.innerHTML = "Nog geen drone gekozen.";
+
+      setScoreVisual(0, "#334155");
+      scoreNumber.textContent = "--";
+      statusBadge.textContent = "Nog niet gecheckt";
+      statusBadge.className = "status-badge status-matig";
+
+      droneLabel.style.display = "none";
+      droneLabel.textContent = "Drone: -";
+
+      windValue.textContent = "-";
+      gustsValue.textContent = "-";
+      rainValue.textContent = "-";
+      kpValue.textContent = "-";
+
+      summaryText.innerHTML = 'Typ een drone of upload een foto en klik daarna op <strong>Check vliegen</strong>.';
+      reasonsList.innerHTML = "";
     });
 
     async function loadModelIfNeeded() {
@@ -156,9 +451,7 @@
     }
 
     async function herkenDrone() {
-      if (!previewImage.src) {
-        throw new Error("Upload eerst een dronefoto.");
-      }
+      if (!previewImage.src) return null;
 
       await loadModelIfNeeded();
 
@@ -167,77 +460,100 @@
 
       const beste = predictions[0];
 
-      droneResult.className = "info";
       droneResult.innerHTML =
-        "🤖 Herkende drone: " + beste.className +
-        '<span class="klein">Zekerheid: ' + (beste.probability * 100).toFixed(1) + "%</span>";
+        "🤖 Herkende drone: <strong>" + beste.className + "</strong>" +
+        '<br><span class="muted">Zekerheid: ' + (beste.probability * 100).toFixed(1) + "%</span>";
 
       return beste.className;
     }
 
-    function getDroneInstellingen(droneNaam) {
-      const naam = droneNaam.toLowerCase().trim();
+    function getDroneInstellingen(name) {
+      const n = name.toLowerCase().trim();
 
-      // 1. Gear2Play Sky Lightning Drone XS
       if (
-        naam === "gear2play sky lightning drone xs" ||
-        naam.includes("sky lightning") ||
-        naam.includes("lightning drone xs")
+        n.includes("gear2play") ||
+        n.includes("sky lightning") ||
+        n.includes("lightning xs") ||
+        n.includes("lightning drone") ||
+        n.includes("toy") ||
+        n.includes("kids") ||
+        n.includes("stunt")
       ) {
         return {
-          label: "Gear2Play Sky Lightning Drone XS",
-          maxGustsGoed: 15,
-          maxGustsMatig: 20,
-          uitleg: "Lichte mini stuntdrone: heel gevoelig voor wind."
+          label: "Mini stunt drone (Gear2Play / toy)",
+          goed: 15,
+          matig: 20,
+          uitleg: "Heel lichte stuntdrone. Buiten alleen bij heel rustig weer."
         };
       }
 
-      // 2. DJI Mini
       if (
-        naam === "dji mini" ||
-        naam.includes("dji mini") ||
-        naam.includes("mini")
+        n.includes("dji mini") ||
+        n.includes("mini 2") ||
+        n.includes("mini 3") ||
+        n.includes("mini 3 pro") ||
+        n.includes("mini 4") ||
+        n.includes("mini 4 pro") ||
+        n === "mini" ||
+        n.includes("mini pro")
       ) {
         return {
           label: "DJI Mini",
-          maxGustsGoed: 20,
-          maxGustsMatig: 28,
-          uitleg: "Lichte cameradrone: best voorzichtig bij wind."
+          goed: 20,
+          matig: 28,
+          uitleg: "Lichte cameradrone. Kan iets meer wind aan dan een speelgoeddrone."
         };
       }
 
-      // 3. DJI Air
       if (
-        naam === "dji air" ||
-        naam.includes("dji air") ||
-        naam.includes("air")
+        n.includes("dji air") ||
+        n.includes("air 2") ||
+        n.includes("air 2s") ||
+        n.includes("air 3") ||
+        n.includes("mavic air") ||
+        n.includes("mavic")
       ) {
         return {
-          label: "DJI Air",
-          maxGustsGoed: 25,
-          maxGustsMatig: 35,
-          uitleg: "Stevigere drone: kan wat meer wind aan."
+          label: "DJI Air / Mavic",
+          goed: 25,
+          matig: 35,
+          uitleg: "Stevigere cameradrone. Kan merkbaar meer wind aan."
         };
       }
 
-      // 4. FPV
       if (
-        naam === "fpv" ||
-        naam.includes("fpv")
+        n.includes("fpv") ||
+        n.includes("racer") ||
+        n.includes("racing drone") ||
+        n.includes("cinewhoop")
       ) {
         return {
-          label: "FPV",
-          maxGustsGoed: 30,
-          maxGustsMatig: 40,
-          uitleg: "Snellere en krachtigere drone: kan meer wind aan, maar blijf opletten."
+          label: "FPV drone",
+          goed: 30,
+          matig: 40,
+          uitleg: "Snelle en krachtige drone. Kan het best tegen wind, maar blijf altijd opletten."
+        };
+      }
+
+      if (
+        n.includes("phantom") ||
+        n.includes("inspire") ||
+        n.includes("enterprise") ||
+        n.includes("pro drone")
+      ) {
+        return {
+          label: "Professionele drone",
+          goed: 35,
+          matig: 45,
+          uitleg: "Grote drone met hogere windtolerantie."
         };
       }
 
       return {
-        label: droneNaam,
-        maxGustsGoed: 18,
-        maxGustsMatig: 25,
-        uitleg: "Onbekend type: ik gebruik veilige standaardregels."
+        label: name,
+        goed: 18,
+        matig: 25,
+        uitleg: "Onbekend type. Ik gebruik veilige standaardregels."
       };
     }
 
@@ -260,9 +576,7 @@
       });
     }
 
-    async function checkWeerMetDroneRegels(droneNaam) {
-      const droneInfo = getDroneInstellingen(droneNaam);
-
+    async function getWeather() {
       const pos = await getLocation();
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
@@ -281,10 +595,14 @@
 
       const weerData = await weerRes.json();
 
-      const wind = Number(weerData.current?.wind_speed_10m ?? 0);
-      const gusts = Number(weerData.current?.wind_gusts_10m ?? 0);
-      const regen = Number(weerData.current?.precipitation ?? 0);
+      return {
+        wind: Number(weerData.current?.wind_speed_10m ?? 0),
+        gusts: Number(weerData.current?.wind_gusts_10m ?? 0),
+        rain: Number(weerData.current?.precipitation ?? 0)
+      };
+    }
 
+    async function getKpIndex() {
       const kpRes = await fetch("https://services.swpc.noaa.gov/json/planetary_k_index_1m.json");
       if (!kpRes.ok) {
         throw new Error("Zonneweerdata kon niet geladen worden.");
@@ -301,63 +619,151 @@
       let kp = parseFloat(kpRaw);
       if (Number.isNaN(kp)) kp = 0;
 
-      let melding = "";
-      let klasse = "";
-      let extra = [];
+      return kp;
+    }
 
-      if (gusts > droneInfo.maxGustsMatig) {
-        extra.push("💨 Te harde windstoten voor deze drone");
-      } else if (gusts > droneInfo.maxGustsGoed) {
-        extra.push("💨 Best veel windstoten voor deze drone");
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function calculateScore(weer, kp, droneInfo) {
+      let score = 100;
+      const redenen = [];
+
+      if (weer.gusts > droneInfo.goed) {
+        const gustPenalty = (weer.gusts - droneInfo.goed) * 4;
+        score -= gustPenalty;
       }
 
-      if (regen > 0) {
-        extra.push("🌧️ Regen");
+      if (weer.gusts > droneInfo.matig) {
+        redenen.push("Windstoten zitten boven de veilige grens voor deze drone.");
+      } else if (weer.gusts > droneInfo.goed) {
+        redenen.push("Er zijn best stevige windstoten voor deze drone.");
+      } else {
+        redenen.push("Windstoten zitten binnen een veilige zone voor deze drone.");
+      }
+
+      if (weer.wind > droneInfo.goed) {
+        score -= (weer.wind - droneInfo.goed) * 1.5;
+      }
+
+      if (weer.rain > 0) {
+        score -= 45;
+        redenen.push("Er is regen. Vliegen in regen is geen goed idee.");
+      } else {
+        redenen.push("Er is geen regen gedetecteerd.");
       }
 
       if (kp >= 6) {
-        extra.push("🌞 Sterke zonnestorm");
+        score -= 20;
+        redenen.push("Sterke zonnestorm: GPS of signaal kan minder stabiel zijn.");
       } else if (kp >= 4) {
-        extra.push("🌞 Actieve zon");
-      }
-
-      if (gusts > droneInfo.maxGustsMatig || regen > 0 || kp >= 6) {
-        klasse = "slecht";
-        melding = "❌ Beter niet vliegen";
-      } else if (gusts > droneInfo.maxGustsGoed || kp >= 4) {
-        klasse = "matig";
-        melding = "⚠️ Voorzichtig vliegen";
+        score -= 8;
+        redenen.push("De zon is wat actiever dan normaal.");
       } else {
-        klasse = "goed";
-        melding = "✅ Ja, je kan vliegen";
+        redenen.push("Zonneweer is rustig.");
       }
 
-      statusBox.className = klasse;
-      statusBox.innerHTML =
-        melding +
-        '<span class="klein">' +
-        "Drone: " + droneInfo.label + "<br>" +
-        "Uitleg: " + droneInfo.uitleg + "<br><br>" +
-        "Gemiddelde wind: " + wind.toFixed(1) + " km/u<br>" +
-        "Windstoten: " + gusts.toFixed(1) + " km/u<br>" +
-        "Regen: " + regen.toFixed(1) + " mm<br>" +
-        "Kp-index: " + kp.toFixed(1) +
-        (extra.length ? "<br><br>" + extra.join("<br>") : "") +
+      score = clamp(Math.round(score), 0, 100);
+      return { score, redenen };
+    }
+
+    function setScoreVisual(score, color) {
+      const deg = score * 3.6;
+      scoreRing.style.background = `conic-gradient(${color} ${deg}deg, #1e293b ${deg}deg)`;
+    }
+
+    function renderResult(droneInfo, weer, kp, scoreData) {
+      const score = scoreData.score;
+      let kleur = "#22c55e";
+      let status = "✅ GOED";
+      let statusClass = "status-badge status-goed";
+      let summary = "Dit ziet er goed uit om te vliegen.";
+
+      if (score < 75) {
+        kleur = "#facc15";
+        status = "⚠️ VOORZICHTIG";
+        statusClass = "status-badge status-matig";
+        summary = "Je kan misschien vliegen, maar doe het voorzichtig.";
+      }
+
+      if (score < 45) {
+        kleur = "#ef4444";
+        status = "❌ NIET VLIEGEN";
+        statusClass = "status-badge status-slecht";
+        summary = "De omstandigheden zijn te slecht voor deze drone.";
+      }
+
+      setScoreVisual(score, kleur);
+      scoreNumber.textContent = score;
+      statusBadge.textContent = status;
+      statusBadge.className = statusClass;
+
+      droneLabel.style.display = "inline-block";
+      droneLabel.textContent = "Drone: " + droneInfo.label;
+
+      windValue.textContent = weer.wind.toFixed(1) + " km/u";
+      gustsValue.textContent = weer.gusts.toFixed(1) + " km/u";
+      rainValue.textContent = weer.rain.toFixed(1) + " mm";
+      kpValue.textContent = kp.toFixed(1);
+
+      summaryText.innerHTML =
+        "<strong>" + summary + "</strong><br><span class='muted'>" +
+        droneInfo.uitleg +
         "</span>";
+
+      reasonsList.innerHTML = "";
+      scoreData.redenen.forEach((reden) => {
+        const li = document.createElement("li");
+        li.textContent = reden;
+        reasonsList.appendChild(li);
+      });
     }
 
     async function startAlles() {
-      statusBox.className = "info";
-      statusBox.innerHTML = "⏳ Drone herkennen en weer checken...";
-
       try {
-        const droneNaam = await herkenDrone();
-        await checkWeerMetDroneRegels(droneNaam);
+        scoreNumber.textContent = "...";
+        statusBadge.textContent = "Bezig met checken...";
+        statusBadge.className = "status-badge status-matig";
+        summaryText.innerHTML = "<span class='loading'>⏳ Drone herkennen en weer checken...</span>";
+        reasonsList.innerHTML = "";
+        setScoreVisual(10, "#64748b");
+
+        let droneNaam = manualDroneInput.value.trim();
+
+        if (droneNaam) {
+          droneResult.innerHTML =
+            "✍️ Ingegeven drone: <strong>" + droneNaam + "</strong>" +
+            "<br><span class='muted'>Ik gebruik jouw ingegeven naam.</span>";
+        } else {
+          droneNaam = await herkenDrone();
+        }
+
+        if (!droneNaam) {
+          throw new Error("Typ een dronenaam of upload een foto.");
+        }
+
+        const droneInfo = getDroneInstellingen(droneNaam);
+        const weer = await getWeather();
+        const kp = await getKpIndex();
+        const scoreData = calculateScore(weer, kp, droneInfo);
+
+        renderResult(droneInfo, weer, kp, scoreData);
       } catch (error) {
-        statusBox.className = "slecht";
-        statusBox.innerHTML =
-          "❌ Er ging iets mis" +
-          '<span class="klein">' + error.message + "</span>";
+        setScoreVisual(100, "#ef4444");
+        scoreNumber.textContent = "!";
+        statusBadge.textContent = "❌ FOUT";
+        statusBadge.className = "status-badge status-slecht";
+        droneLabel.style.display = "none";
+
+        summaryText.innerHTML = "<strong>Er ging iets mis.</strong><br><span class='muted'>" + error.message + "</span>";
+        reasonsList.innerHTML = "";
+
+        windValue.textContent = "-";
+        gustsValue.textContent = "-";
+        rainValue.textContent = "-";
+        kpValue.textContent = "-";
+
         console.error(error);
       }
     }
