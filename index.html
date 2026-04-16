@@ -880,7 +880,25 @@
       }
     }
 
-    saveCorrectionBtn.addEventListener("click", () => {
+   correctBtn.addEventListener("click", () => {
+  correctionBox.classList.add("hidden");
+  feedbackBox.classList.add("hidden");
+  correctionMessage.textContent = "Top! Deze herkenning is juist ✅";
+
+  droneResult.innerHTML += "<br><span class='muted'>Bevestigd door jou.</span>";
+});
+
+wrongBtn.addEventListener("click", () => {
+  correctionBox.classList.remove("hidden");
+  feedbackBox.classList.add("hidden");
+
+  correctionMessage.textContent = "❌ Oké, wat is de juiste naam?";
+  correctNameInput.focus();
+
+  droneResult.innerHTML += "<br><span class='muted'>❌ Deze herkenning was fout.</span>";
+});
+
+saveCorrectionBtn.addEventListener("click", async () => {
   const echteNaam = correctNameInput.value.trim();
 
   if (!echteNaam) {
@@ -906,42 +924,24 @@
   lastUsedName = echteNaam;
 
   correctionBox.classList.add("hidden");
-});
-
-    wrongBtn.addEventListener("click", () => {
-  correctionBox.classList.remove("hidden");
   feedbackBox.classList.add("hidden");
 
-  correctionMessage.textContent = "❌ Oké, wat is de juiste naam?";
-  correctNameInput.focus();
+  try {
+    scoreNumber.textContent = "...";
+    statusBadge.textContent = "Opnieuw berekenen...";
+    statusBadge.className = "status-badge status-matig";
 
-  droneResult.innerHTML += "<br><span class='muted'>❌ Deze herkenning was fout.</span>";
+    const droneInfo = getDroneInstellingen(echteNaam);
+    const weer = await getWeather();
+    const kp = await getKpIndex();
+    const scoreData = calculateScore(weer, kp, droneInfo);
+
+    renderResult(droneInfo, weer, kp, scoreData);
+  } catch (error) {
+    console.error(error);
+    correctionMessage.textContent = "Opgeslagen, maar opnieuw berekenen mislukte.";
+  }
 });
-
-    saveCorrectionBtn.addEventListener("click", () => {
-      const echteNaam = correctNameInput.value.trim();
-
-      if (!echteNaam) {
-        correctionMessage.textContent = "Typ eerst de echte naam.";
-        return;
-      }
-
-      if (!lastRawPrediction) {
-        correctionMessage.textContent = "Er is nog geen AI-voorspelling om te verbeteren.";
-        return;
-      }
-
-      const corrections = getCorrections();
-      corrections[normalizeName(lastRawPrediction)] = echteNaam;
-      saveCorrections(corrections);
-
-      correctionMessage.textContent = "Opgeslagen! Volgende keer verbeter ik deze naam automatisch.";
-      droneResult.innerHTML =
-        "🤖 Herkende drone: <strong>" + echteNaam + "</strong>" +
-        "<br><span class='muted'>Verbeterd met jouw feedback.</span>";
-
-      lastUsedName = echteNaam;
-    });
 
     checkBtn.addEventListener("click", startAlles);
   </script>
