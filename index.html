@@ -790,7 +790,12 @@ async function startAlles() {
   const kp = await getKpIndex();
   const result = calculateScore(w, kp);
 
-  render(result.score, result.reasons);
+  windValue.textContent = w.wind.toFixed(1) + " km/u";
+gustsValue.textContent = w.gusts.toFixed(1) + " km/u";
+rainValue.textContent = w.rain.toFixed(1) + " mm";
+kpValue.textContent = kp.toFixed(1);
+
+render(result.score, result.reasons);
 
   feedbackBox.classList.remove("hidden");
 }
